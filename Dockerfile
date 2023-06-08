@@ -1,4 +1,4 @@
-FROM golang:1.17 as build
+FROM golang:alpine3.18 as build
 WORKDIR /app
 
 COPY . .
@@ -8,7 +8,7 @@ EXPOSE 8080
 
 RUN go build -o /app/application
 
-FROM golang:1.17
+FROM golang:alpine3.18
 COPY --from=build /app/application /app/executable
 ENTRYPOINT ["/app/executable"]
 

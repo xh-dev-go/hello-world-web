@@ -1,4 +1,4 @@
-module helloworldweb
+module github.com/xh-dev-go/hello-world-web
 
 go 1.20
 

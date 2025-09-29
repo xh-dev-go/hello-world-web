@@ -1,19 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v2"
+	"log"
 	"net/http"
 	"os"
+
+	"gopkg.in/yaml.v2"
 )
 
-type Headers map[string]interface{}
+type Headers map[string][]string
 type ResponseBody struct {
-	Host    string  `yaml:"host"`
-	Url     string  `yaml:"url"`
-	Ip      string  `yaml:"ip"`
-	Referer string  `yaml:"referer"`
-	Headers Headers `yaml:"headers"`
+	Host    string  `yaml:"host" json:"host"`
+	URL     string  `yaml:"url" json:"url"`
+	Ip      string  `yaml:"ip" json:"ip"`
+	Referer string  `yaml:"referer" json:"referer"`
+	Headers Headers `yaml:"headers" json:"headers"`
 }
 
 func main() {
@@ -23,29 +26,50 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		var response ResponseBody
-		var headers = make(Headers)
-		for k, v := range request.Header {
-			headers[k] = v
+		response := ResponseBody{
+			Host:    request.Host,            // Host header
+			URL:     request.RequestURI,      // Request URI
+			Ip:      request.RemoteAddr,      // IP address of the client
+			Referer: request.Referer(),       // Referer header
+			Headers: Headers(request.Header), // All request headers
 		}
-		response.Host = request.Host
-		response.Url = request.RequestURI
-		response.Ip = request.RemoteAddr
-		response.Referer = request.Referer()
-		response.Headers = headers
-		b, err := yaml.Marshal(&response)
-		if err != nil {
-			panic(err)
+
+		format := request.URL.Query().Get("format")
+		if format == "" {
+			format = "yaml" // Default to yaml
 		}
-		_, err = writer.Write(b)
+
+		var data []byte
+		var err error
+
+		switch format {
+		case "json":
+			writer.Header().Set("Content-Type", "application/json")
+			data, err = json.MarshalIndent(&response, "", "  ")
+		case "yaml":
+			writer.Header().Set("Content-Type", "application/x-yaml")
+			data, err = yaml.Marshal(&response)
+		default:
+			http.Error(writer, fmt.Sprintf("error: unsupported format '%s'", format), http.StatusBadRequest)
+			return
+		}
+
 		if err != nil {
-			panic(err)
+			log.Printf("Error marshaling response: %v", err)
+			http.Error(writer, "Error creating response", http.StatusInternalServerError)
+			return
+		}
+
+		_, err = writer.Write(data)
+		if err != nil {
+			log.Printf("Error writing response: %v", err)
 		}
 	})
 	portStr := fmt.Sprintf(":%v", port)
+	log.Printf("Starting server on port %s", port)
 	err := http.ListenAndServe(portStr, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Server failed to start: %v", err)
 	}
 
 }

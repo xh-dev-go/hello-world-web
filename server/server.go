@@ -1,15 +1,17 @@
 package server
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
+
 	"github.com/xh-dev-go/hello-world-web/interfaces"
-	"encoding/json"
 	"gopkg.in/yaml.v2"
-	"log"
-	"fmt"
 )
-func LaunchServer(){
+
+func LaunchServer() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -17,10 +19,10 @@ func LaunchServer(){
 
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		response := interfaces.ResponseBody{
-			Host:    request.Host,            // Host header
-			URL:     request.RequestURI,      // Request URI
-			Ip:      request.RemoteAddr,      // IP address of the client
-			Referer: request.Referer(),       // Referer header
+			Host:    request.Host,                       // Host header
+			URL:     request.RequestURI,                 // Request URI
+			Ip:      request.RemoteAddr,                 // IP address of the client
+			Referer: request.Referer(),                  // Referer header
 			Headers: interfaces.Headers(request.Header), // All request headers
 		}
 

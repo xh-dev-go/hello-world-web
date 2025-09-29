@@ -19,3 +19,4 @@ FROM alpine:latest
 COPY --from=build /app/application /app/executable
 EXPOSE 8080
 ENTRYPOINT ["/app/executable"]
+CMD ["server"]

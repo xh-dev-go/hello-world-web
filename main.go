@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/yaml.v2"
 	"github.com/spf13/cobra"
 	"github.com/xh-dev-go/hello-world-web/interfaces"
 	"github.com/xh-dev-go/hello-world-web/server"
+	"gopkg.in/yaml.v2"
 )
 
 var rootCmd = &cobra.Command{
@@ -33,6 +33,20 @@ var serverCmd = &cobra.Command{
 	},
 }
 
+var clientCmd = &cobra.Command{
+	Use:   "client",
+	Short: "Client-side commands to interact with a hello-world-web server",
+	Long:  `A collection of commands to test and inspect responses from a running hello-world-web server instance.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// This check runs before any subcommand of 'client'
+		url, _ := cmd.Flags().GetString("url")
+		if url == "" {
+			return fmt.Errorf("Error: --url flag is required for all client commands")
+		}
+		return nil
+	},
+}
+
 var testCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Make a test request to a URL and print the response",
@@ -40,20 +54,12 @@ var testCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		url, _ := cmd.Flags().GetString("url")
 		if url == "" {
+			// This check is handled by clientCmd.PersistentPreRunE,
+			// but we can keep it as a safeguard.
 			log.Fatal("Error: --url flag is required")
 		}
 
-		resp, err := http.Get(url)
-		if err != nil {
-			log.Fatalf("Error making request to %s: %v", url, err)
-		}
-		defer resp.Body.Close()
-
-		fmt.Printf("Response from %s (Status: %s):\n", url, resp.Status)
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatalf("Error reading response body: %v", err)
-		}
+		body := getResponseBody(url)
 		fmt.Println(string(body))
 	},
 }
@@ -148,7 +154,7 @@ var proxyChainCmd = &cobra.Command{
 			fmt.Printf("%s -> [ %s ] -> %s\n", originIp, strings.Join(fullChain, " -> "), destination)
 		} else {
 			// Case: No X-Forwarded-For header
-			fmt.Printf("%s -> [ no proxy ]-> %s\n", response.Ip, destination)
+			fmt.Printf("%s -> [ no proxy ] -> %s\n", response.Ip, destination)
 		}
 	},
 }
@@ -162,7 +168,7 @@ func getResponseBody(url string) []byte {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Warning: Received non-200 status code (%s) from %s", resp.Status, url)
+		log.Printf("Warning: Received non-OK status code (%s) from %s", resp.Status, url)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -174,15 +180,16 @@ func getResponseBody(url string) []byte {
 
 func main() {
 	rootCmd.AddCommand(serverCmd)
-	rootCmd.AddCommand(testCmd)
-	rootCmd.AddCommand(getIpCmd)
-	rootCmd.AddCommand(getHeadersCmd)
-	rootCmd.AddCommand(proxyChainCmd)
+	rootCmd.AddCommand(clientCmd)
 
-	testCmd.Flags().StringP("url", "u", "", "URL to make a test request to (required)")
-	getIpCmd.Flags().StringP("url", "u", "", "URL of the hello-world-web server (required)")
-	getHeadersCmd.Flags().StringP("url", "u", "", "URL of the hello-world-web server (required)")
-	proxyChainCmd.Flags().StringP("url", "u", "", "URL of the hello-world-web server (required)")
+	// Add the --url flag to the parent 'client' command
+	clientCmd.PersistentFlags().StringP("url", "u", "", "URL of the target hello-world-web server (required)")
+
+	// Add the client-side commands as subcommands of 'client'
+	clientCmd.AddCommand(testCmd)
+	clientCmd.AddCommand(getIpCmd)
+	clientCmd.AddCommand(getHeadersCmd)
+	clientCmd.AddCommand(proxyChainCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

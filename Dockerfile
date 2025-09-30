@@ -15,8 +15,17 @@ COPY . ./
 RUN CGO_ENABLED=0 go build -o /app/application
 
 # Use a minimal, non-root base image for the final stage
-FROM alpine:latest
-COPY --from=build /app/application /app/executable
+FROM alpine:3.20
+
+# Create a non-root user and group
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Copy the executable and set ownership
+COPY --from=build --chown=appuser:appgroup /app/application /app/executable
+
+# Switch to the non-root user
+USER appuser
+
 EXPOSE 8080
 ENTRYPOINT ["/app/executable"]
 CMD ["server"]

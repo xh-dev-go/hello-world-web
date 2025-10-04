@@ -3,13 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/xh-dev-go/hello-world-web/operations"
 	"github.com/xh-dev-go/hello-world-web/interfaces"
 	"github.com/xh-dev-go/hello-world-web/server"
 	"gopkg.in/yaml.v2"
@@ -59,7 +58,7 @@ var testCmd = &cobra.Command{
 			log.Fatal("Error: --url flag is required")
 		}
 
-		body := getResponseBody(url)
+		body := operations.GetResponseBody(url)
 		fmt.Println(string(body))
 	},
 }
@@ -74,24 +73,12 @@ var getIpCmd = &cobra.Command{
 			log.Fatal("Error: --url flag is required")
 		}
 
-		body := getResponseBody(url)
-		var response interfaces.ResponseBody
-		err := yaml.Unmarshal(body, &response)
+		ip, err := operations.GetIp(url)
 		if err != nil {
-			log.Fatalf("Error parsing YAML response from %s: %v\nBody: %s", url, err, string(body))
-		}
-
-		// Check for X-Forwarded-For header first, as it indicates the original client IP when behind a proxy.
-		// The header value can be a comma-separated list; the first IP is the client.
-		if forwardedIps, ok := response.Headers["X-Forwarded-For"]; ok && len(forwardedIps) > 0 {
-			// The value can be a comma-separated list of IPs. The client is the first one.
-			clientIp := strings.Split(forwardedIps[0], ",")[0]
-			fmt.Println(strings.TrimSpace(clientIp))
+			log.Fatalf("Error: %v", err)
 		} else {
-			// Fallback to the IP field which is the direct connection IP (RemoteAddr).
-			fmt.Println(response.Ip)
+			fmt.Println(ip)
 		}
-
 	},
 }
 
@@ -105,7 +92,7 @@ var getHeadersCmd = &cobra.Command{
 			log.Fatal("Error: --url flag is required")
 		}
 
-		body := getResponseBody(url)
+		body := operations.GetResponseBody(url)
 		var response interfaces.ResponseBody
 		err := yaml.Unmarshal(body, &response)
 		if err != nil {
@@ -131,7 +118,7 @@ var proxyChainCmd = &cobra.Command{
 			log.Fatal("Error: --url flag is required")
 		}
 
-		body := getResponseBody(url)
+		body := operations.GetResponseBody(url)
 		var response interfaces.ResponseBody
 		err := yaml.Unmarshal(body, &response)
 		if err != nil {
@@ -157,25 +144,6 @@ var proxyChainCmd = &cobra.Command{
 			fmt.Printf("%s -> [ no proxy ] -> %s\n", response.Ip, destination)
 		}
 	},
-}
-
-// getResponseBody is a helper function to fetch and read the body from a URL.
-func getResponseBody(url string) []byte {
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Fatalf("Error making request to %s: %v", url, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("Warning: Received non-OK status code (%s) from %s", resp.Status, url)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("Error reading response body: %v", err)
-	}
-	return body
 }
 
 func main() {

@@ -52,7 +52,7 @@ func LaunchServer() {
 			writer.Header().Set("Content-Type", "application/json")
 			data, err = json.MarshalIndent(&response, "", "  ")
 		case "yaml":
-			writer.Header().Set("Content-Type", "application/x-yaml")
+			writer.Header().Set("Content-Type", "application/yaml")
 			data, err = yaml.Marshal(&response)
 		default:
 			http.Error(writer, fmt.Sprintf("error: unsupported format '%s'", format), http.StatusBadRequest)

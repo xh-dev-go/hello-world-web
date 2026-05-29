@@ -31,7 +31,9 @@ func GetResponseBody(url string) []byte {
 }
 
 func GetIpFromHeaders(resp interfaces.ResponseBody) (string, error) {
-	if cfIp, ok := resp.Headers["CF-Connecting-IP"]; ok {
+	if azIp, ok := resp.Headers["X-Envoy-External-Address"]; ok {
+		return azIp[0], nil
+	} else if cfIp, ok := resp.Headers["Cf-Connecting-Ip"]; ok {
 		return cfIp[0], nil
 	} else if forwardedIps, ok := resp.Headers["X-Forwarded-For"]; ok && len(forwardedIps) > 0 {
 		// The value can be a comma-separated list of IPs. The client is the first one.

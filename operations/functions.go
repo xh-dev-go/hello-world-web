@@ -30,6 +30,19 @@ func GetResponseBody(url string) []byte {
 	return body
 }
 
+func GetIpFromHeaders(resp interfaces.ResponseBody) (string, error) {
+	if cfIp, ok := resp.Headers["CF-Connecting-IP"]; ok {
+		return cfIp[0], nil
+	} else if forwardedIps, ok := resp.Headers["X-Forwarded-For"]; ok && len(forwardedIps) > 0 {
+		// The value can be a comma-separated list of IPs. The client is the first one.
+		clientIp := strings.Split(forwardedIps[0], ",")[0]
+		return clientIp, nil
+	} else {
+		// Fallback to the IP field which is the direct connection IP (RemoteAddr).
+		return resp.Ip, nil	
+	}
+}
+
 func GetIp(url string) (string, error){
 	body:=GetResponseBody(url)
 	var response interfaces.ResponseBody
@@ -38,12 +51,13 @@ func GetIp(url string) (string, error){
 		return "", fmt.Errorf("Error parsing YAML response from %s: %v\nBody: %s", url, err, string(body))
 	}
 	
-	if forwardedIps, ok := response.Headers["X-Forwarded-For"]; ok && len(forwardedIps) > 0 {
-		// The value can be a comma-separated list of IPs. The client is the first one.
-		clientIp := strings.Split(forwardedIps[0], ",")[0]
-		return clientIp, nil
-	} else {
-		// Fallback to the IP field which is the direct connection IP (RemoteAddr).
-		return response.Ip, nil	
-	}
+	return GetIpFromHeaders(response);
+	// if forwardedIps, ok := response.Headers["X-Forwarded-For"]; ok && len(forwardedIps) > 0 {
+	// 	// The value can be a comma-separated list of IPs. The client is the first one.
+	// 	clientIp := strings.Split(forwardedIps[0], ",")[0]
+	// 	return clientIp, nil
+	// } else {
+	// 	// Fallback to the IP field which is the direct connection IP (RemoteAddr).
+	// 	return response.Ip, nil	
+	// }
 }

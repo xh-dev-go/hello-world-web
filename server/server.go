@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/xh-dev-go/hello-world-web/interfaces"
+	"github.com/xh-dev-go/hello-world-web/operations"
 	"gopkg.in/yaml.v2"
 )
 
@@ -24,7 +25,11 @@ func LaunchServer() {
 			Ip:      request.RemoteAddr,                 // IP address of the client
 			Referer: request.Referer(),                  // Referer header
 			Headers: interfaces.Headers(request.Header), // All request headers
+			DerivedIP: "",                               // Caculated by the server
 		}
+
+
+
 
 		format := request.URL.Query().Get("format")
 		if format == "" {
@@ -33,6 +38,14 @@ func LaunchServer() {
 
 		var data []byte
 		var err error
+
+		ip, err := operations.GetIpFromHeaders(response)
+		if err != nil {
+			log.Printf("Error getting IP from headers: %v", err)
+			response.DerivedIP = ""
+		} else {
+			response.DerivedIP = ip
+		}
 
 		switch format {
 		case "json":
